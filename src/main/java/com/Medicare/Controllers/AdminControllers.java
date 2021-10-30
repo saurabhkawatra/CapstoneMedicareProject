@@ -52,7 +52,8 @@ public class AdminControllers {
 	@Autowired
 	List<LoggedInUserDetails> loggedInUsersDetailsList;
 	
-	String baseURL="http://localhost:8084";
+//	String baseURL="http://localhost:8084";
+	String baseURL="http://54.157.10.242:8084";
 	
 	public String adminAuthentication(HttpServletRequest request) {
 		System.out.println("Checking Admin Authority");

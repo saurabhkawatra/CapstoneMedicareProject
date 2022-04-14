@@ -28,9 +28,11 @@ import com.Medicare.DAO.CartDAO;
 import com.Medicare.DAO.ContactDAO;
 import com.Medicare.DAO.ItemCategoryDAO;
 import com.Medicare.DAO.ItemDAO;
+import com.Medicare.DAO.PurchaseHistoryDAO;
 import com.Medicare.DAO.UserDAO;
 import com.Medicare.Entity.Item;
 import com.Medicare.Entity.ItemCategory;
+import com.Medicare.Entity.PurchaseHistory;
 import com.Medicare.Entity.User;
 
 @Controller
@@ -48,12 +50,14 @@ public class AdminControllers {
 	private ItemCategoryDAO itemCategoryDao;
 	@Autowired
 	private ContactDAO contactDao;
+	@Autowired
+	private PurchaseHistoryDAO purchaseHistoryDao;
 	
 	@Autowired
 	List<LoggedInUserDetails> loggedInUsersDetailsList;
 	
-//	String baseURL="http://localhost:8084";
-	String baseURL="http://54.157.10.242:8084";
+	String baseURL="http://localhost:8084";
+//	String baseURL="http://54.157.10.242:8084";
 	
 	public String adminAuthentication(HttpServletRequest request) {
 		System.out.println("Checking Admin Authority");
@@ -367,6 +371,7 @@ public class AdminControllers {
 			updatedItem.setItemCompany(item.getItemCompany());
 			updatedItem.setItemQuantity(item.getItemQuantity());
 			updatedItem.setUnitPrice(item.getUnitPrice());
+			updatedItem.setItemImageName(item.getItemImageName());
 			
 			itemDao.save(updatedItem);
 			
@@ -393,14 +398,58 @@ public class AdminControllers {
 		}
 	}
 	
-	
-	
-	@RequestMapping(path = {"/test"})
+	@RequestMapping(path = "/getallusers",method = RequestMethod.POST)
 	@ResponseBody
-	public String test() {
-		System.out.println(loggedInUsersDetailsList);
-		System.out.println("Number of Logged In Users in the List="+loggedInUsersDetailsList.size());
-		return "admin test run ok";
+	@CrossOrigin("*")
+	public List<User> getallusers(HttpServletRequest request,HttpServletResponse response) {
+		String authority_authentication=adminAuthentication(request);
+		
+		if(authority_authentication.equals("AuthenticationFailure")) {
+			try {
+				response.sendError(401);
+				System.out.println("AuthenticationFailure");
+			} catch (Exception e) {
+				System.out.println("AuthenticationFailure Catch");
+				System.out.println(e.getMessage());
+				e.printStackTrace();
+			}
+			System.out.println("Returning null from Admin getallusers()");
+			return null;
+		} else {
+			return userDao.findByAuthority("ROLE_User");
+		}
 	}
+	
+	@RequestMapping(path = "/getPurchaseHistoryListForUser/{userId}",method = RequestMethod.POST)
+	@ResponseBody
+	@CrossOrigin("*")
+	public List<PurchaseHistory> getPurchaseHistoryListForUser(HttpServletRequest request,HttpServletResponse response,
+			@PathVariable("userId") int userId) {
+		String authority_authentication=adminAuthentication(request);
+		
+		if(authority_authentication.equals("AuthenticationFailure")) {
+			try {
+				response.sendError(401);
+				System.out.println("AuthenticationFailure");
+			} catch (Exception e) {
+				System.out.println("AuthenticationFailure Catch");
+				System.out.println(e.getMessage());
+				e.printStackTrace();
+			}
+			System.out.println("Returning null from Admin getitembyId()");
+			return null;
+		} else {
+			return purchaseHistoryDao.findByUserId(userId);
+		}
+	}
+	
+	
+		@RequestMapping(path = {"/test"})
+		@ResponseBody
+		public String test() {
+			System.out.println(loggedInUsersDetailsList);
+			System.out.println("Number of Logged In Users in the List="+loggedInUsersDetailsList.size());
+			return "admin test run ok";
+		}	
 
 }

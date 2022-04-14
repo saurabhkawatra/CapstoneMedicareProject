@@ -1,5 +1,7 @@
 package com.Medicare.DAO;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -13,5 +15,6 @@ public interface UserDAO extends CrudRepository<User, Integer> {
 	public User findByPrimaryEmail(String email);
 	public User findByPrimaryPhoneNo(String phoneno);
 	public User findByUserId(int userId);
+	public List<User> findByAuthority(String authority);
 	
 }

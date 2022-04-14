@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -106,6 +107,29 @@ public class UserControllers {
 					});
 			System.out.println(activatedItemsList);
 			return activatedItemsList;
+		}
+	}
+	@RequestMapping(path = "/getitembyId/{id}",method = RequestMethod.POST)
+	@ResponseBody
+	@CrossOrigin("*")
+	public Item getitembyId(@PathVariable(name = "id",required = true) int id,HttpServletRequest request,HttpServletResponse response) {
+		String authority_authentication=userAuthentication(request);
+		
+		if(authority_authentication.equals("AuthenticationFailure")) {
+			try {
+				response.sendError(401);
+				System.out.println("AuthenticationFailure");
+			} catch (Exception e) {
+				System.out.println("AuthenticationFailure Catch");
+				System.out.println(e.getMessage());
+				e.printStackTrace();
+			}
+			System.out.println("Returning null from Admin getitembyId()");
+			return null;
+		} else {
+			System.out.println("Received Item id");
+			System.out.println("Returning Item from User getitembyId()");
+			return itemDao.findByItemId(id);
 		}
 	}
 	

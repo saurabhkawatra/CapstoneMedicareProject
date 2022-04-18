@@ -2,8 +2,10 @@ package com.Medicare.Controllers;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -35,6 +37,7 @@ import com.Medicare.Entity.Cart;
 import com.Medicare.Entity.Contact;
 import com.Medicare.Entity.Item;
 import com.Medicare.Entity.User;
+import com.Medicare.Services.EmailService;
 
 @Controller
 public class BasicControllers {
@@ -49,6 +52,9 @@ public class BasicControllers {
 	private ItemCategoryDAO itemCategoryDao;
 	@Autowired
 	private ContactDAO contactDao;
+	@Autowired
+	private EmailService emailService;
+	private Map<User, String> otpUserMap = new HashMap<>();
 	@Autowired
 	List<LoggedInUserDetails> loggedInUsersDetailsList;
 
@@ -140,6 +146,56 @@ public class BasicControllers {
 		}
 		
 		return ResponseEntity.ok(restoken);
+	}
+	
+	@RequestMapping(value = "/sendRegistrationOtp", method = RequestMethod.POST)
+	@ResponseBody
+	@CrossOrigin("*")
+	public String sendRegistrationOtp(@RequestBody User reg_user) {
+		if (userDao.findByUsername(reg_user.getUsername()) != null) {
+			System.out.println("Duplicate Username");
+			return "Duplicate Username";
+		}
+		if (userDao.findByPrimaryEmail(reg_user.getPrimaryEmail()) != null) {
+			System.out.println("Duplicate Email");
+			return "Duplicate Email";
+		}
+		if (userDao.findByPrimaryPhoneNo(reg_user.getPrimaryPhoneNo()) != null) {
+			System.out.println("Duplicate Primary PhoneNumber");
+			return "Duplicate Primary PhoneNumber";
+		}
+		
+		int randomTwoDigits = (int) Math.floor(Math.random()*100);
+		String otp= String.valueOf(reg_user.getUsername().charAt(0)) 
+				+ String.valueOf(randomTwoDigits) 
+				+ String.valueOf(reg_user.getUsername().charAt(reg_user.getUsername().length()-1))
+				+ String.valueOf((int) Math.floor(Math.random()*100));
+		try {
+			emailService.sendSimpleTextEmail(reg_user.getPrimaryEmail(), "Medicare OTP", "Please Use the OTP - "+otp+" to authenticate yourself");
+			otpUserMap.put(reg_user, otp);
+			Thread t1 = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						Thread.currentThread().sleep(1500000);
+						System.out.println("OTP Timeout For User " + reg_user);
+						otpUserMap.remove(reg_user);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						System.out.println("Exception From Thread For User" + reg_user);
+						System.out.println(e.getMessage());
+					}
+				}
+			});
+			t1.start();
+			System.out.println("OTP sent");
+			return "OTP sent";
+		} catch(Exception e) {
+			e.printStackTrace();
+			System.out.println(e.getMessage());
+			System.out.println("OTP failure");
+			return "OTP Failure! Check Email and Try Again!";
+		}
 	}
 
 	@RequestMapping(value = "/register", method = RequestMethod.POST)

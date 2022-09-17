@@ -32,12 +32,19 @@ import com.Medicare.DAO.CartDAO;
 import com.Medicare.DAO.ContactDAO;
 import com.Medicare.DAO.ItemCategoryDAO;
 import com.Medicare.DAO.ItemDAO;
+import com.Medicare.DAO.LoggedInUserDetailsInDatabaseDAO;
+import com.Medicare.DAO.OtpUserDAO;
 import com.Medicare.DAO.UserDAO;
+import com.Medicare.DAO.UserOtpMapDAO;
 import com.Medicare.Entity.Cart;
 import com.Medicare.Entity.Contact;
 import com.Medicare.Entity.Item;
+import com.Medicare.Entity.LoggedInUserDetailsInDatabase;
+import com.Medicare.Entity.OtpUser;
 import com.Medicare.Entity.User;
+import com.Medicare.Entity.UserOtpMap;
 import com.Medicare.Services.EmailService;
+import com.Medicare.Utils.BasicUtils;
 
 @Controller
 public class BasicControllers {
@@ -53,8 +60,14 @@ public class BasicControllers {
 	@Autowired
 	private ContactDAO contactDao;
 	@Autowired
+	private OtpUserDAO otpUserDao;
+	@Autowired
+	private UserOtpMapDAO userOtpMapDao;
+	@Autowired
+	private LoggedInUserDetailsInDatabaseDAO loggedInUserDetailsInDatabaseDao;
+	@Autowired
 	private EmailService emailService;
-	private Map<User, String> otpUserMap = new HashMap<>();
+	private Map<OtpUser, String> otpUserMap = new HashMap<>();
 	@Autowired
 	List<LoggedInUserDetails> loggedInUsersDetailsList;
 
@@ -71,23 +84,30 @@ public class BasicControllers {
 		Date d=new Date();
 		token=token.concat(u.getUsername()+String.valueOf(d));
 		token=token.replaceAll(" ", "");
-		loggedInUsersDetailsList.add(new LoggedInUserDetails(u, token));
+//		loggedInUsersDetailsList.add(new LoggedInUserDetails(u, token));
+		loggedInUserDetailsInDatabaseDao.save(new LoggedInUserDetailsInDatabase(0, u, token, new Date()));
 		return token;
 	}
 	public void checkForMultipleLogin(User user) {
-		int count=0;
-		LoggedInUserDetails liudcheck=new LoggedInUserDetails();
-		for (LoggedInUserDetails liud : loggedInUsersDetailsList) {
-			if (liud.getLoggedInUserObject().getUsername().equals(user.getUsername())) {
-				if (liud.getLoggedInUserObject().getPassword().equals(user.getPassword())) {
-					count++;
-					if(count==1) {liudcheck=liud;}
-				}
-			}
-		}
-		for(int i=0;i<count;i++) {
-			loggedInUsersDetailsList.remove(liudcheck);
-			System.out.println("Duplicate Removal Done!");
+//		int count=0;
+//		LoggedInUserDetails liudcheck=new LoggedInUserDetails();
+//		for (LoggedInUserDetails liud : loggedInUsersDetailsList) {
+//			if (liud.getLoggedInUserObject().getUsername().equals(user.getUsername())) {
+//				if (liud.getLoggedInUserObject().getPassword().equals(user.getPassword())) {
+//					count++;
+//					if(count==1) {liudcheck=liud;}
+//				}
+//			}
+//		}
+//		for(int i=0;i<count;i++) {
+//			loggedInUsersDetailsList.remove(liudcheck);
+//			System.out.println("Duplicate Removal Done!");
+//		}
+		LoggedInUserDetailsInDatabase loggedInUserDetailsInDatabase = loggedInUserDetailsInDatabaseDao.findByLoggedInUserObjectUsername(user.getUsername());
+		if(loggedInUserDetailsInDatabase != null) {
+			System.out.println("TESTING LOGIN DB DUPLICATE CHECK CALL");
+			System.out.println(loggedInUserDetailsInDatabaseDao.findByLoggedInUserObjectUsername(user.getUsername()));
+			loggedInUserDetailsInDatabaseDao.deleteById(loggedInUserDetailsInDatabase.getLoggedInUserDetailsId());
 		}
 	}
 
@@ -151,18 +171,18 @@ public class BasicControllers {
 	@RequestMapping(value = "/sendRegistrationOtp", method = RequestMethod.POST)
 	@ResponseBody
 	@CrossOrigin("*")
-	public String sendRegistrationOtp(@RequestBody User reg_user) {
+	public String sendRegistrationOtp(@RequestBody OtpUser reg_user) {
 		if (userDao.findByUsername(reg_user.getUsername()) != null) {
 			System.out.println("Duplicate Username");
-			return "Duplicate Username";
+			return "{\"message\":\"Duplicate Username\"}";
 		}
 		if (userDao.findByPrimaryEmail(reg_user.getPrimaryEmail()) != null) {
 			System.out.println("Duplicate Email");
-			return "Duplicate Email";
+			return "{\"message\":\"Duplicate Email\"}";
 		}
 		if (userDao.findByPrimaryPhoneNo(reg_user.getPrimaryPhoneNo()) != null) {
 			System.out.println("Duplicate Primary PhoneNumber");
-			return "Duplicate Primary PhoneNumber";
+			return "{\"message\":\"Duplicate Primary PhoneNumber\"}";
 		}
 		
 		int randomTwoDigits = (int) Math.floor(Math.random()*100);
@@ -172,38 +192,64 @@ public class BasicControllers {
 				+ String.valueOf((int) Math.floor(Math.random()*100));
 		try {
 			emailService.sendSimpleTextEmail(reg_user.getPrimaryEmail(), "Medicare OTP", "Please Use the OTP - "+otp+" to authenticate yourself");
+			
+			UserOtpMap savedUserOtpMap = userOtpMapDao.save(new UserOtpMap(null, reg_user, otp));
 			otpUserMap.put(reg_user, otp);
+			int sleepTime = 30000;
 			Thread t1 = new Thread(new Runnable() {
 				@Override
 				public void run() {
 					try {
-						Thread.currentThread().sleep(1500000);
+						Thread.currentThread().sleep(sleepTime);
 						System.out.println("OTP Timeout For User " + reg_user);
+						try {
+							userOtpMapDao.delete(savedUserOtpMap);
+						} catch (Exception e) {
+							e.printStackTrace();
+							System.out.println("Exception From Register API otp check while delete For User" + reg_user);
+							System.out.println(e.getMessage());
+						}
 						otpUserMap.remove(reg_user);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
-						System.out.println("Exception From Thread For User" + reg_user);
+						System.out.println("Interrupted Exception From Thread For User" + reg_user);
+						System.out.println(e.getMessage());
+					} catch (Exception e) {
+						e.printStackTrace();
+						System.out.println("Generic Exception From Thread For User" + reg_user);
 						System.out.println(e.getMessage());
 					}
 				}
 			});
 			t1.start();
 			System.out.println("OTP sent");
-			return "OTP sent";
+			return "{\"message\":\"OTP sent\",\"expirationTime\":\""+sleepTime+"\"}";
 		} catch(Exception e) {
 			e.printStackTrace();
 			System.out.println(e.getMessage());
 			System.out.println("OTP failure");
-			return "OTP Failure! Check Email and Try Again!";
+			return "{\"message\":\"OTP Failure! Check Email and Try Again!\"}";
 		}
 	}
+	
 
 	@RequestMapping(value = "/register", method = RequestMethod.POST)
 	@ResponseBody
 	@CrossOrigin("*")
-	public String register(@RequestBody User reg_user) {
+	public String register(@RequestBody User reg_user,@RequestParam("otp") String otp) {
 		System.out.println("User Details :: " + reg_user);
 
+		if (otpUserMap.get(reg_user) == null || !otpUserMap.get(reg_user).equals(otp)) {
+			otpUserMap.remove(reg_user);
+			try {
+				userOtpMapDao.delete(userOtpMapDao.findByUser(BasicUtils.convertUserToOtpUser(reg_user)));
+			} catch (Exception e) {
+				System.out.println("Exception From Register API otp check while delete For User " + reg_user);
+				System.out.println(e.getMessage());
+			}
+			System.out.println("Invalid OTP !!");
+			return "Invalid OTP !!";
+		}
 		if (userDao.findByUsername(reg_user.getUsername()) != null) {
 			System.out.println("Duplicate Username");
 			return "Duplicate Username";
@@ -217,6 +263,7 @@ public class BasicControllers {
 			return "Duplicate Primary PhoneNumber";
 		}
 
+		otpUserMap.remove(reg_user);
 		reg_user.setCart(new Cart());
 		reg_user.setAuthority("ROLE_User");
 		reg_user.setContacts(new ArrayList<>());
@@ -244,25 +291,39 @@ public class BasicControllers {
 			rt.message="noAuthority";
 			return ResponseEntity.ok(rt);
 		}
-		for(LoggedInUserDetails ld:loggedInUsersDetailsList) {
-			if(ld.getAuthToken().equals(token)) {
-				check=1;
-				if(ld.getLoggedInUserObject().getAuthority().equals("ROLE_Admin")) {
-					rt.message="admin";
-					return ResponseEntity.ok(rt);
-				} else {
-					rt.message="user";
-					return ResponseEntity.ok(rt);
-				}
-					
+//		for(LoggedInUserDetails ld:loggedInUsersDetailsList) {
+//			if(ld.getAuthToken().equals(token)) {
+//				check=1;
+//				if(ld.getLoggedInUserObject().getAuthority().equals("ROLE_Admin")) {
+//					rt.message="admin";
+//					return ResponseEntity.ok(rt);
+//				} else {
+//					rt.message="user";
+//					return ResponseEntity.ok(rt);
+//				}
+//					
+//			}
+//		}
+//		if(check==0) {
+//			rt.message="noAuthority";
+//			return ResponseEntity.ok(rt);
+//		}
+		
+		LoggedInUserDetailsInDatabase liudid = loggedInUserDetailsInDatabaseDao.findByAuthToken(token);
+		if(liudid != null) {
+			if(liudid.getLoggedInUserObject().getAuthority().equals("ROLE_Admin")) {
+				rt.message="admin";
+				return ResponseEntity.ok(rt);
+			} else {
+				rt.message="user";
+				return ResponseEntity.ok(rt);
 			}
-		}
-		if(check==0) {
+		} else {
 			rt.message="noAuthority";
 			return ResponseEntity.ok(rt);
 		}
 		
-		return ResponseEntity.ok(rt);
+//		return ResponseEntity.ok(rt);
 	}
 
 	@RequestMapping(value = "/checkforusername/{username}", method = RequestMethod.POST)
@@ -310,11 +371,15 @@ public class BasicControllers {
 	@CrossOrigin("*")
 	public ResponseToken logout(HttpServletRequest request) {
 		String token=request.getHeader("AUTH_TOKEN");
-		if(token!=null)
-		for(int i=0;i<loggedInUsersDetailsList.size();i++) {
-			if(loggedInUsersDetailsList.get(i).authToken.equals(token)) {
-				System.out.println("Logging out - fname= "+loggedInUsersDetailsList.get(i).getLoggedInUserObject().getFirstName()+" username= "+loggedInUsersDetailsList.get(i).getLoggedInUserObject().getUsername());
-				loggedInUsersDetailsList.remove(i);
+		if(token!=null) {
+//			for(int i=0;i<loggedInUsersDetailsList.size();i++) {
+//				if(loggedInUsersDetailsList.get(i).authToken.equals(token)) {
+//					System.out.println("Logging out - fname= "+loggedInUsersDetailsList.get(i).getLoggedInUserObject().getFirstName()+" username= "+loggedInUsersDetailsList.get(i).getLoggedInUserObject().getUsername());
+//					loggedInUsersDetailsList.remove(i);
+//				}
+//			}
+			if(loggedInUserDetailsInDatabaseDao.findByAuthToken(token) != null) {
+				loggedInUserDetailsInDatabaseDao.deleteById(loggedInUserDetailsInDatabaseDao.findByAuthToken(token).getLoggedInUserDetailsId());
 			}
 		}
 		return new ResponseToken("Logged Out Successfully!", null);
@@ -322,7 +387,7 @@ public class BasicControllers {
 	@RequestMapping(value = "/test", method = RequestMethod.GET /* , headers = { "AUTH_KEY" } */)
 	@ResponseBody
 	public String test(HttpServletRequest request, HttpServletResponse response) {
-		System.out.println("Test Running");
+		System.out.println("Test Running, to print logged in users");
 		System.out.println(loggedInUsersDetailsList);
 		System.out.println("Number of Logged In Users in the List="+loggedInUsersDetailsList.size());
 		
@@ -390,6 +455,6 @@ public class BasicControllers {
 //		userDao.save(u);
 //		itemDao.delete(itemDao.findByItemId(23));
 //		
-		return "run ok";
+		return "run ok! List of logged in users printed in the console";
 	}
 }

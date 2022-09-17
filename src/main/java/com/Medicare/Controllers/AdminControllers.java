@@ -28,10 +28,12 @@ import com.Medicare.DAO.CartDAO;
 import com.Medicare.DAO.ContactDAO;
 import com.Medicare.DAO.ItemCategoryDAO;
 import com.Medicare.DAO.ItemDAO;
+import com.Medicare.DAO.LoggedInUserDetailsInDatabaseDAO;
 import com.Medicare.DAO.PurchaseHistoryDAO;
 import com.Medicare.DAO.UserDAO;
 import com.Medicare.Entity.Item;
 import com.Medicare.Entity.ItemCategory;
+import com.Medicare.Entity.LoggedInUserDetailsInDatabase;
 import com.Medicare.Entity.PurchaseHistory;
 import com.Medicare.Entity.User;
 
@@ -52,6 +54,8 @@ public class AdminControllers {
 	private ContactDAO contactDao;
 	@Autowired
 	private PurchaseHistoryDAO purchaseHistoryDao;
+	@Autowired
+	private LoggedInUserDetailsInDatabaseDAO loggedInUserDetailsInDatabaseDao;
 	
 	@Autowired
 	List<LoggedInUserDetails> loggedInUsersDetailsList;
@@ -65,13 +69,18 @@ public class AdminControllers {
 		System.out.println("Checking Admin Authority :: Token ="+token);
 		if(token==null)
 			return "AuthenticationFailure";
-		for(LoggedInUserDetails ld:loggedInUsersDetailsList) {
-			if(ld.authToken.equals(token)) {
-				if(ld.loggedInUserObject.getAuthority().equals("ROLE_Admin")) {
-					System.out.println("AdminAuthenticated");
-					return "AdminAuthenticated";
-				}	
-			}
+//		for(LoggedInUserDetails ld:loggedInUsersDetailsList) {
+//			if(ld.authToken.equals(token)) {
+//				if(ld.loggedInUserObject.getAuthority().equals("ROLE_Admin")) {
+//					System.out.println("AdminAuthenticated");
+//					return "AdminAuthenticated";
+//				}	
+//			}
+//		}
+		LoggedInUserDetailsInDatabase liudid = loggedInUserDetailsInDatabaseDao.findByAuthToken(token);
+		if(liudid != null) {
+			if(liudid.getLoggedInUserObject().getAuthority().equals("ROLE_Admin"))
+				return "AdminAuthenticated";
 		}
 		return "AuthenticationFailure";
 	}
@@ -173,10 +182,11 @@ public class AdminControllers {
 		} else {
 			String token=request.getHeader("AUTH_TOKEN");
 			User returnUser=new User();
-			for(LoggedInUserDetails ld : loggedInUsersDetailsList) {
-				if(ld.authToken.equals(token))
-					returnUser=ld.getLoggedInUserObject();
-			}
+//			for(LoggedInUserDetails ld : loggedInUsersDetailsList) {
+//				if(ld.authToken.equals(token))
+//					returnUser=ld.getLoggedInUserObject();
+//			}
+			returnUser=loggedInUserDetailsInDatabaseDao.findByAuthToken(token).getLoggedInUserObject();
 			System.out.println("Returning User from Admin getuserdetails");
 			return returnUser;
 		}

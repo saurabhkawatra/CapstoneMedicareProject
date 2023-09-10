@@ -444,7 +444,7 @@ public class AdminControllers {
 //				Removing Old Image Files
 				if(updatedItem.getItemImageName() != null) {
 					System.out.println("Removing Old Image Files");
-					String[] fileNamesArray = updatedItem.getItemImageName().split("<::||||::>");
+					String[] fileNamesArray = updatedItem.getItemImageName().split("\\<\\:\\:\\|\\|\\|\\|\\:\\:\\>");
 					for(int i=0; i < fileNamesArray.length; i++) {
 						File file = new File(request.getRealPath(""));
 						System.out.println("request.getRealPath(\"\") - "+request.getRealPath(""));

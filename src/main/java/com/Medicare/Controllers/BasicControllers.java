@@ -1,5 +1,7 @@
 package com.Medicare.Controllers;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -11,10 +13,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,10 +75,53 @@ public class BasicControllers {
 	private Map<OtpUser, String> otpUserMap = new HashMap<>();
 	@Autowired
 	List<LoggedInUserDetails> loggedInUsersDetailsList;
+	
+	
+	
+	@Value("${thisIsACustomPropertyInApplicationPropertiesFile}")
+	private String thisIsACustomPropertyInApplicationPropertiesFile;
+	
+	@Value("${currentSystemOperatingSystemName}")
+	private String currentSystemOperatingSystemName;
+	
+	
+	
 
 	@RequestMapping("/")
-	public String index() {
+	public String index(Model model) {
+		model.addAttribute("testModelAttribureName", "testModelAttribureValue");
 		return "index";
+	}
+	
+	// Scheduler Task Will Run every 5 minutes and delete Users from LoggedInUsersDetailsInDatabase Table who are inactive for more than 15 mins or their session time has exceeded 4 hours.
+	@Scheduled(fixedDelay = 300000)
+	public void scheduledCheckForIdleUsersInLoggedInUserDao() {
+		System.out.println("Scheduler checkForIdleUsersInLoggedInUserDao() Running....");
+		System.out.println("OS Name - "+System.getProperty("os.name")+" - System.getProperty(\"os.name\")");
+		System.out.println("OS Architecture - "+System.getProperty("os.name")+" - System.getProperty(\"os.name\")");
+		System.out.println("Property Values Printing from application properties file : thisIsACustomPropertyInApplicationPropertiesFile - "+thisIsACustomPropertyInApplicationPropertiesFile);
+		System.out.println("Property Values Printing from application properties file : currentSystemOperatingSystemName - "+currentSystemOperatingSystemName);
+		System.out.println("Creating test.txt File");
+		File file = new File("test.txt");
+		try {
+			file.createNewFile();
+			System.out.println("file getAbsolutePath() "+file.getAbsolutePath());
+			System.out.println("file getParent() "+file.getParent());
+			System.out.println("file getPath() "+file.getPath());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		Iterator<LoggedInUserDetailsInDatabase> iterator = loggedInUserDetailsInDatabaseDao.findAll().iterator();
+		while(iterator.hasNext()) {
+			LoggedInUserDetailsInDatabase loggedInUserDetailsInDatabase = iterator.next();
+			Date currentDateAndTime = new Date();
+			if(currentDateAndTime.getTime() - loggedInUserDetailsInDatabase.getLoggedInDateAndTime().getTime() > 14400000) {
+				loggedInUserDetailsInDatabaseDao.deleteById(loggedInUserDetailsInDatabase.getLoggedInUserDetailsId());
+			} else if(currentDateAndTime.getTime() - loggedInUserDetailsInDatabase.getLastActivityDateAndTime().getTime() > 900000) {
+				loggedInUserDetailsInDatabaseDao.deleteById(loggedInUserDetailsInDatabase.getLoggedInUserDetailsId());
+			}
+		}
 	}
 
 	public String loginUserAndReturnToken(User u) {
@@ -85,7 +133,7 @@ public class BasicControllers {
 		token=token.concat(u.getUsername()+String.valueOf(d));
 		token=token.replaceAll(" ", "");
 //		loggedInUsersDetailsList.add(new LoggedInUserDetails(u, token));
-		loggedInUserDetailsInDatabaseDao.save(new LoggedInUserDetailsInDatabase(0, u, token, new Date()));
+		loggedInUserDetailsInDatabaseDao.save(new LoggedInUserDetailsInDatabase(0, u, token, new Date(), new Date()));
 		return token;
 	}
 	public void checkForMultipleLogin(User user) {
@@ -312,9 +360,13 @@ public class BasicControllers {
 		LoggedInUserDetailsInDatabase liudid = loggedInUserDetailsInDatabaseDao.findByAuthToken(token);
 		if(liudid != null) {
 			if(liudid.getLoggedInUserObject().getAuthority().equals("ROLE_Admin")) {
+				liudid.setLastActivityDateAndTime(new Date());
+				loggedInUserDetailsInDatabaseDao.save(liudid);
 				rt.message="admin";
 				return ResponseEntity.ok(rt);
 			} else {
+				liudid.setLastActivityDateAndTime(new Date());
+				loggedInUserDetailsInDatabaseDao.save(liudid);
 				rt.message="user";
 				return ResponseEntity.ok(rt);
 			}

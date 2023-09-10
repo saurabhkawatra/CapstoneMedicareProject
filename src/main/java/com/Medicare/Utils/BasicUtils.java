@@ -10,7 +10,7 @@ import com.Medicare.Entity.UserForPurchaseHistory;
 public class BasicUtils {
 	
 	public static User convertOtpUserToUser(OtpUser otpUser) {
-		return new User(0, otpUser.getFirstName(), otpUser.getLastName(), otpUser.getUsername(), otpUser.getPassword(), otpUser.getPrimaryEmail(), otpUser.getPrimaryPhoneNo(), otpUser.getAuthority(), otpUser.getDateOfBirth(), null, null);
+		return new User(0, otpUser.getFirstName(), otpUser.getLastName(), otpUser.getUsername(), otpUser.getPassword(), otpUser.getPrimaryEmail(), otpUser.getPrimaryPhoneNo(), otpUser.getAuthority(), otpUser.getDateOfBirth(), null, null, null) ;
 	}
 	
 	public static OtpUser convertUserToOtpUser(User user) {

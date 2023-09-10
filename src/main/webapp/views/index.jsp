@@ -25,6 +25,16 @@ Sign Up&nbsp;&nbsp;&nbsp;&nbsp;Login&nbsp;&nbsp;</h3>
 </div>
 <hr>
 
+<h1 style="text-align: center;">THIS IS SERVER BACKEND API RUNNING ON 8084 PORT</h1>
+
+<a href="scrollbarStyle.css">test</a>
+
+<h5>Testing Model Attribute in JSP <%=request.getAttribute("testModelAttribureName")%></h5>
+	<% if(request.getAttribute("testModelAttribureName").equals("testModelAttribureValue")) { %>
+	<h5>This is printed for if block where condition is request.getAttribute("testModelAttribureName").equals("testModelAttribureValue")</h5>
+	<% } else {%>
+	<h5>This is printed for else block</h5>
+	<% } %>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj" crossorigin="anonymous"></script>
 </body>

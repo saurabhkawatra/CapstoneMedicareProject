@@ -26,5 +26,6 @@ public class LoggedInUserDetailsInDatabase {
 	private User loggedInUserObject;
 	private String authToken;
 	private Date loggedInDateAndTime;
+	private Date lastActivityDateAndTime;
 
 }

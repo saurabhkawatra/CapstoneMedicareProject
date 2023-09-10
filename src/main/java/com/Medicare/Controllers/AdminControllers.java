@@ -1,8 +1,20 @@
 package com.Medicare.Controllers;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.FileSystem;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+import java.nio.file.WatchEvent.Kind;
+import java.nio.file.WatchEvent.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -79,8 +91,11 @@ public class AdminControllers {
 //		}
 		LoggedInUserDetailsInDatabase liudid = loggedInUserDetailsInDatabaseDao.findByAuthToken(token);
 		if(liudid != null) {
-			if(liudid.getLoggedInUserObject().getAuthority().equals("ROLE_Admin"))
+			if(liudid.getLoggedInUserObject().getAuthority().equals("ROLE_Admin")) {
+				liudid.setLastActivityDateAndTime(new Date());
+				loggedInUserDetailsInDatabaseDao.save(liudid);
 				return "AdminAuthenticated";
+			}
 		}
 		return "AuthenticationFailure";
 	}
@@ -259,7 +274,7 @@ public class AdminControllers {
 	@RequestMapping(path = "/addNewItem",method = RequestMethod.POST,consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseBody
 	@CrossOrigin("*")
-	public ResponseToken addNewItem(@ModelAttribute Item item,@RequestParam(name = "imageFile" , required = false) MultipartFile imageFile ,HttpServletRequest request,HttpServletResponse response) {
+	public ResponseToken addNewItem(@ModelAttribute Item item,@RequestParam(name = "imageFiles" , required = false) MultipartFile[] imageFiles ,HttpServletRequest request,HttpServletResponse response) {
 		String authority_authentication=adminAuthentication(request);
 		
 		if(authority_authentication.equals("AuthenticationFailure")) {
@@ -280,21 +295,59 @@ public class AdminControllers {
 			item.setItemStatus("active");
 			itemDao.save(item);
 			
-			if(imageFile==null) {
+			if(imageFiles==null) {
 				System.out.println("No Image Found in request");
 				System.out.println("Item Saved without Image");
 			} else {
-				System.out.println("Image Found in request");
-				String imgname=item.getItemId()+item.getItemName()+"."+item.getItemImageName().split("[.]")[1];
-				System.out.println("Generated Image Name="+imgname);
-				item.setItemImageType(item.getItemImageName().split("[.]")[1]);
-				item.setItemImageName(imgname);
-				File file = new File(request.getRealPath(""));
-				File pfile=new File(file.getParent()+"\\resources\\static\\UploadedItemImages\\"+imgname);
-				System.out.println("Uploading Image to the server");
-				try {pfile.createNewFile();imageFile.transferTo(pfile);}
-				catch(Exception e) {System.out.println(e.getMessage());e.printStackTrace();}
-				item.setItemImageUrl(baseURL+"/UploadedItemImages/"+item.getItemImageName());
+				String concatinatedItemImageName = "";
+				String concatinatedItemImageType = "";
+				String concatinatedItemImageUrl = "";
+				for(int i=0; i<imageFiles.length; i++) {
+					System.out.println("Image Found in request");
+					String imgname=item.getItemId()+item.getItemName()+"ImageNo"+i+"."+imageFiles[i].getContentType().split("/")[1];
+					imgname = imgname.replace(" ", "");
+					System.out.println("Generated Image Name="+imgname);
+					concatinatedItemImageName = concatinatedItemImageName == "" ? imgname : concatinatedItemImageName + "<::||||::>" + imgname;
+					concatinatedItemImageType = concatinatedItemImageType == "" ? imageFiles[i].getContentType() : concatinatedItemImageType + "<::||||::>" + imageFiles[i].getContentType();
+					concatinatedItemImageUrl = concatinatedItemImageUrl == "" ? baseURL+"/UploadedItemImages/"+imgname : concatinatedItemImageUrl + "<::||||::>" + baseURL+"/UploadedItemImages/"+imgname;
+					File file = new File(request.getRealPath(""));
+					System.out.println("request.getRealPath(\"\") - "+request.getRealPath(""));
+					System.out.println("file getAbsolutePath() "+file.getAbsolutePath());
+					System.out.println("file getParent() "+file.getParent());
+					System.out.println("file getPath() "+file.getPath());
+					File pfile;
+//					File pfile=new File(file.getParent()+"\\resources\\static\\UploadedItemImages\\"+imgname);
+//					System Dependent Path Separator
+					if(System.getProperty("os.name").toLowerCase().contains("Windows".toLowerCase())) {
+//						For Windows
+						pfile=new File(file.getParent()+File.separator+"resources"+File.separator+"static"+File.separator+"UploadedItemImages"+File.separator+imgname);
+						System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+						System.out.println("pfile getParent() "+pfile.getParent());
+						System.out.println("pfile getPath() "+pfile.getPath());
+					} else {
+//						For Ubuntu
+						pfile=new File("UploadFolder"+File.separator+"UploadedItemImages"+File.separator+imgname);
+						System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+						System.out.println("pfile getParent() "+pfile.getParent());
+						System.out.println("pfile getPath() "+pfile.getPath());
+					}
+					
+					
+					System.out.println("Uploading Image to the server");
+					try {
+//						pfile.createNewFile();
+//						imageFiles[i].transferTo(newFilePath);
+						System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+						System.out.println("pfile getParent() "+pfile.getParent());
+						System.out.println("pfile getPath() "+pfile.getPath());
+						Path newFilePath = Paths.get(pfile.getAbsolutePath());
+						Files.write(newFilePath,imageFiles[i].getBytes());
+					}
+					catch(Exception e) {System.out.println(e.getMessage());e.printStackTrace();}
+				}
+				item.setItemImageName(concatinatedItemImageName);
+				item.setItemImageType(concatinatedItemImageType);
+				item.setItemImageUrl(concatinatedItemImageUrl);
 				itemDao.save(item);
 				System.out.println("Item Saved with Image");
 			}
@@ -358,7 +411,7 @@ public class AdminControllers {
 	@RequestMapping(path = "/updateItem",method = RequestMethod.POST,consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseBody
 	@CrossOrigin("*")
-	public ResponseToken upadateItem(@ModelAttribute Item item,@RequestParam(name = "imageFile" , required = false) MultipartFile imageFile ,HttpServletRequest request,HttpServletResponse response) {
+	public ResponseToken upadateItem(@ModelAttribute Item item,@RequestParam(name = "imageFiles" , required = false) MultipartFile[] imageFiles ,HttpServletRequest request,HttpServletResponse response) {
 		String authority_authentication=adminAuthentication(request);
 		
 		if(authority_authentication.equals("AuthenticationFailure")) {
@@ -381,25 +434,87 @@ public class AdminControllers {
 			updatedItem.setItemCompany(item.getItemCompany());
 			updatedItem.setItemQuantity(item.getItemQuantity());
 			updatedItem.setUnitPrice(item.getUnitPrice());
-			updatedItem.setItemImageName(item.getItemImageName());
 			
 			itemDao.save(updatedItem);
 			
-			if(imageFile==null) {
+			if(imageFiles==null) {
 				System.out.println("No Image Found in request");
 				System.out.println("Item Saved without Image");
 			} else {
-				System.out.println("Image Found in request");
-				String imgname=updatedItem.getItemId()+updatedItem.getItemName()+"."+updatedItem.getItemImageName().split("[.]")[1];
-				System.out.println("Generated Image Name="+imgname);
-				updatedItem.setItemImageType(updatedItem.getItemImageName().split("[.]")[1]);
-				updatedItem.setItemImageName(imgname);
-				File file = new File(request.getRealPath(""));
-				File pfile=new File(file.getParent()+"\\resources\\static\\UploadedItemImages\\"+imgname);
-				System.out.println("Uploading Image to the server");
-				try {pfile.createNewFile();imageFile.transferTo(pfile);}
-				catch(Exception e) {System.out.println(e.getMessage());e.printStackTrace();}
-				updatedItem.setItemImageUrl(baseURL+"/UploadedItemImages/"+updatedItem.getItemImageName());
+//				Removing Old Image Files
+				if(updatedItem.getItemImageName() != null) {
+					System.out.println("Removing Old Image Files");
+					String[] fileNamesArray = updatedItem.getItemImageName().split("<::||||::>");
+					for(int i=0; i < fileNamesArray.length; i++) {
+						File file = new File(request.getRealPath(""));
+						System.out.println("request.getRealPath(\"\") - "+request.getRealPath(""));
+						System.out.println("file getAbsolutePath() "+file.getAbsolutePath());
+						System.out.println("file getParent() "+file.getParent());
+						System.out.println("file getPath() "+file.getPath());
+//						File pfile = new File(file.getParent()+"\\resources\\static\\UploadedItemImages\\"+fileNamesArray[i]);
+//						pfile.delete();
+						File pfile;
+//						System Dependent Path Separator
+						if(System.getProperty("os.name").toLowerCase().contains("Windows".toLowerCase())) {
+							pfile = new File(file.getParent()+File.separator+"resources"+File.separator+"static"+File.separator+"UploadedItemImages"+File.separator+fileNamesArray[i]);
+							System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+							System.out.println("pfile getParent() "+pfile.getParent());
+							System.out.println("pfile getPath() "+pfile.getPath());
+							pfile.delete();
+						} else {
+							pfile = new File("UploadFolder"+File.separator+"UploadedItemImages"+File.separator+fileNamesArray[i]);
+							System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+							System.out.println("pfile getParent() "+pfile.getParent());
+							System.out.println("pfile getPath() "+pfile.getPath());
+							pfile.delete();
+						}
+					}
+				}
+				String concatinatedItemImageName = "";
+				String concatinatedItemImageType = "";
+				String concatinatedItemImageUrl = "";
+				for(int i=0; i<imageFiles.length; i++) {
+					System.out.println("Image Found in request");
+					String imgname=item.getItemId()+item.getItemName()+"ImageNo"+i+"."+imageFiles[i].getContentType().split("/")[1];
+					imgname = imgname.replace(" ", "");
+					System.out.println("Generated Image Name="+imgname);
+					concatinatedItemImageName = concatinatedItemImageName == "" ? imgname : concatinatedItemImageName + "<::||||::>" + imgname;
+					concatinatedItemImageType = concatinatedItemImageType == "" ? imageFiles[i].getContentType() : concatinatedItemImageType + "<::||||::>" + imageFiles[i].getContentType();
+					concatinatedItemImageUrl = concatinatedItemImageUrl == "" ? baseURL+"/UploadedItemImages/"+imgname : concatinatedItemImageUrl + "<::||||::>" + baseURL+"/UploadedItemImages/"+imgname;
+					File file = new File(request.getRealPath(""));
+//					File pfile=new File(file.getParent()+"\\resources\\static\\UploadedItemImages\\"+imgname);
+					File pfile;
+//					System Dependent Path Separator
+					if(System.getProperty("os.name").toLowerCase().contains("Windows".toLowerCase())) {
+//						For Windows
+						pfile=new File(file.getParent()+File.separator+"resources"+File.separator+"static"+File.separator+"UploadedItemImages"+File.separator+imgname);
+						System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+						System.out.println("pfile getParent() "+pfile.getParent());
+						System.out.println("pfile getPath() "+pfile.getPath());
+					} else {
+//						For Ubuntu
+						pfile=new File("UploadFolder"+File.separator+"UploadedItemImages"+File.separator+imgname);
+						System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+						System.out.println("pfile getParent() "+pfile.getParent());
+						System.out.println("pfile getPath() "+pfile.getPath());
+					}
+					
+
+					System.out.println("Uploading Image to the server");
+					try {
+//						pfile.createNewFile();
+//						imageFiles[i].transferTo(pfile);
+						System.out.println("pfile getAbsolutePath() "+pfile.getAbsolutePath());
+						System.out.println("pfile getParent() "+pfile.getParent());
+						System.out.println("pfile getPath() "+pfile.getPath());
+						Path newFilePath = Paths.get(pfile.getAbsolutePath());
+						Files.write(newFilePath,imageFiles[i].getBytes());
+					}
+					catch(Exception e) {System.out.println(e.getMessage());e.printStackTrace();}
+				}
+				updatedItem.setItemImageName(concatinatedItemImageName);
+				updatedItem.setItemImageType(concatinatedItemImageType);
+				updatedItem.setItemImageUrl(concatinatedItemImageUrl);
 				itemDao.save(updatedItem);
 				System.out.println("Item Updated with Image");
 			}

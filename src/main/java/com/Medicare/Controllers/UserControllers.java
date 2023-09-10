@@ -1,5 +1,6 @@
 package com.Medicare.Controllers;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -9,13 +10,17 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.Medicare.Beans.LoggedInUserDetails;
 import com.Medicare.DAO.CartDAO;
@@ -71,8 +76,11 @@ public class UserControllers {
 //		}
 		LoggedInUserDetailsInDatabase liudid = loggedInUserDetailsInDatabaseDao.findByAuthToken(token);
 		if(liudid != null) {
-			if(liudid.getLoggedInUserObject().getAuthority().equals("ROLE_Admin") || liudid.getLoggedInUserObject().getAuthority().equals("ROLE_User"))
+			if(liudid.getLoggedInUserObject().getAuthority().equals("ROLE_Admin") || liudid.getLoggedInUserObject().getAuthority().equals("ROLE_User")) {
+				liudid.setLastActivityDateAndTime(new Date());
+				loggedInUserDetailsInDatabaseDao.save(liudid);
 				return "AdminAuthenticated";
+			}
 		}
 		return "AuthenticationFailure";
 	}
@@ -423,6 +431,45 @@ public class UserControllers {
 				} else {
 					return phList;
 				}
+		}
+	}
+	
+	
+	@RequestMapping(path = "/updateProfilePhoto",method = RequestMethod.POST,consumes = {MediaType.MULTIPART_FORM_DATA_VALUE,MediaType.ALL_VALUE})
+	@ResponseBody
+	@CrossOrigin("*")
+	public ResponseToken updateProfilePhoto(HttpServletRequest request,HttpServletResponse response,@RequestParam(name = "profilePhotoImage",required = false) MultipartFile imageFile) {
+		
+		String authority_authentication=userAuthentication(request);
+		
+		if(authority_authentication.equals("AuthenticationFailure")) {
+			try {
+				response.sendError(401);
+				System.out.println("AuthenticationFailure");
+			} catch (Exception e) {
+				System.out.println("AuthenticationFailure Catch");
+				System.out.println(e.getMessage());
+				e.printStackTrace();
+			}
+			System.out.println("Returning null from User getListOfPurchases");
+			return null;
+		} else {
+			String token=request.getHeader("AUTH_TOKEN");
+			User u=new User();
+			u = loggedInUserDetailsInDatabaseDao.findByAuthToken(token).getLoggedInUserObject();
+			if(imageFile != null) {
+				try {
+					u.setProfilePicture(imageFile.getBytes());
+				} catch (IOException e) {
+					System.out.println("Update Profile Photo Catch Image save error");
+					System.out.println(e.getMessage());
+					e.printStackTrace();
+				}
+			} else {
+				u.setProfilePicture(null);
+			}
+			userDao.save(u);
+			return new ResponseToken("ProfileImageUpdated", null);
 		}
 	}
 	

@@ -14,8 +14,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
@@ -23,14 +21,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.client.RestTemplate;
+
 
 import com.Medicare.Beans.LoggedInUserDetails;
 import com.Medicare.DAO.CartDAO;
@@ -93,6 +89,12 @@ public class BasicControllers {
 		return "index";
 	}
 	
+	@RequestMapping("/serveDemoAngularApplication/**")
+	public String serveDemoAngularApplication(Model model) {
+		model.addAttribute("testModelAttribureName", "testModelAttribureValue");
+		return "indexAngularDemoApp";
+	}
+	
 	// Scheduler Task Will Run every 5 minutes and delete Users from LoggedInUsersDetailsInDatabase Table who are inactive for more than 15 mins or their session time has exceeded 4 hours.
 	@Scheduled(fixedDelay = 300000)
 	public void scheduledCheckForIdleUsersInLoggedInUserDao() {
@@ -117,8 +119,10 @@ public class BasicControllers {
 			LoggedInUserDetailsInDatabase loggedInUserDetailsInDatabase = iterator.next();
 			Date currentDateAndTime = new Date();
 			if(currentDateAndTime.getTime() - loggedInUserDetailsInDatabase.getLoggedInDateAndTime().getTime() > 14400000) {
+				// Logging out when (Current Time - Login Time) > 4 hours 
 				loggedInUserDetailsInDatabaseDao.deleteById(loggedInUserDetailsInDatabase.getLoggedInUserDetailsId());
 			} else if(currentDateAndTime.getTime() - loggedInUserDetailsInDatabase.getLastActivityDateAndTime().getTime() > 900000) {
+				// Logging out when (Current Time - Last Activity Time) > 15 mins
 				loggedInUserDetailsInDatabaseDao.deleteById(loggedInUserDetailsInDatabase.getLoggedInUserDetailsId());
 			}
 		}
@@ -136,6 +140,7 @@ public class BasicControllers {
 		loggedInUserDetailsInDatabaseDao.save(new LoggedInUserDetailsInDatabase(0, u, token, new Date(), new Date()));
 		return token;
 	}
+//	Below method checks if the user already logged in, then logout that user and login it again with new Token id
 	public void checkForMultipleLogin(User user) {
 //		int count=0;
 //		LoggedInUserDetails liudcheck=new LoggedInUserDetails();
@@ -198,7 +203,11 @@ public class BasicControllers {
 		ResponseToken restoken = new ResponseToken();
 		
 		if( loginUser!=null && loginUser.getPassword().equals(user.getPassword())) {
-			checkForMultipleLogin(loginUser);
+//			Check if same user can login from multiple browser or devices
+//			Below method checks if the user already logged in, then logout that user and login it again with new Token id
+//			If below method is commented, multi-login will be enabled else disabled
+//			If multi-login is enabled, different login sessions are maintained separately
+//			checkForMultipleLogin(loginUser);
 			String authToken=loginUserAndReturnToken(loginUser);
 			if(loginUser.getAuthority().equals("ROLE_User")) {
 				restoken.setMessage("user_login_success");
@@ -436,6 +445,8 @@ public class BasicControllers {
 		}
 		return new ResponseToken("Logged Out Successfully!", null);
 	}
+	
+	
 	@RequestMapping(value = "/test", method = RequestMethod.GET /* , headers = { "AUTH_KEY" } */)
 	@ResponseBody
 	public String test(HttpServletRequest request, HttpServletResponse response) {

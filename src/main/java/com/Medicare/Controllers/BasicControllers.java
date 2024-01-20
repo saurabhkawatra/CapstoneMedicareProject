@@ -92,8 +92,17 @@ public class BasicControllers {
 	@RequestMapping("/serveDemoAngularApplication/**")
 	public String serveDemoAngularApplication(Model model) {
 		model.addAttribute("testModelAttribureName", "testModelAttribureValue");
+		model.addAttribute("demoAngularAppKeyAttribute", "DemoAngAppKey"+(int) Math.floor(Math.random()*10000)+"dateTime"+new Date().toGMTString().replaceAll(" ", "")+"KeyEnd");
 		return "indexAngularDemoApp";
 	}
+	
+	@RequestMapping("/serveMedicareAngularApplication/**")
+	public String serveMedicareAngularApplication(Model model) {
+		model.addAttribute("testModelAttribureName", "testModelAttribureValue");
+		model.addAttribute("demoAngularAppKeyAttribute", "DemoAngAppKey"+(int) Math.floor(Math.random()*10000)+"dateTime"+new Date().toGMTString().replaceAll(" ", "")+"KeyEnd");
+		return "indexMedicareAngularApp";
+	}
+	
 	
 	// Scheduler Task Will Run every 5 minutes and delete Users from LoggedInUsersDetailsInDatabase Table who are inactive for more than 15 mins or their session time has exceeded 4 hours.
 	@Scheduled(fixedDelay = 300000)

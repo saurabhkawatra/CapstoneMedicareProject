@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
 
     
-    <link rel="stylesheet" href="scrollbarStyle.css">
+    <link rel="stylesheet" href="/CSS/scrollbarStyle.css">
 <meta charset="ISO-8859-1">
 <title>Medicare</title>
 </head>
@@ -27,7 +27,7 @@ Sign Up&nbsp;&nbsp;&nbsp;&nbsp;Login&nbsp;&nbsp;</h3>
 
 <h1 style="text-align: center;">THIS IS SERVER BACKEND API RUNNING ON 8084 PORT</h1>
 
-<a href="scrollbarStyle.css">test</a>
+<a href="/CSS/scrollbarStyle.css">test scrollbarStyle.css link</a>
 
 <h5>Testing Model Attribute in JSP <%=request.getAttribute("testModelAttribureName")%></h5>
 	<% if(request.getAttribute("testModelAttribureName").equals("testModelAttribureValue")) { %>
@@ -35,6 +35,8 @@ Sign Up&nbsp;&nbsp;&nbsp;&nbsp;Login&nbsp;&nbsp;</h3>
 	<% } else {%>
 	<h5>This is printed for else block</h5>
 	<% } %>
+	
+	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj" crossorigin="anonymous"></script>
 </body>
